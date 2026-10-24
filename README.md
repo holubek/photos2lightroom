@@ -16,7 +16,7 @@ Your original RAWs  →     Edit exported copies  →    View finished photograp
 
 1. Select photographs in Apple Photos.
 2. Export copies of their originals with Photos to Lightroom.
-3. Add those files to Lightroom, edit them, and export finished JPEGs.
+3. In **Lightroom (Local mode)**, navigate to `<user home>/PhotosToLR`, open your batch folder, edit the photographs, and export finished JPEGs.
 4. Use Photos to Lightroom to apply the JPEGs to the original items in Photos.
 
 For photographs, the returned JPEG becomes the edited version of the existing library item, rather than a separate imported photo. The app preserves the original RAW and any paired original JPEG in Photos. You can use Photos' **Revert to Original** command to remove the edit. See Apple's [guide to editing and reverting photos](https://support.apple.com/guide/photos/pht304c2ace6/mac).
@@ -27,7 +27,7 @@ The returned image contains the finished appearance of your Lightroom edit. Ligh
 
 - A Mac. The app's macOS deployment target is macOS 14 Sonoma or later; the Xcode version needed to open the project may require a newer macOS.
 - Apple Photos with your original photographs available to export.
-- Adobe Lightroom installed, with access to its editing and export features.
+- Adobe Lightroom installed, with **Local mode** and access to its editing and export features.
 - Xcode to build the app using the instructions below.
 - Enough free disk space for exported originals and finished JPEGs.
 
@@ -64,11 +64,16 @@ Each batch has its own folder, with a numeric prefix and date in its name. Keep 
 
 For RAW+JPEG pairs, the app removes the extra exported JPEG copy when it recognizes the matching RAW. Both originals remain in Apple Photos.
 
-### 2. Edit in Lightroom
+### 2. Edit in Lightroom (Local mode)
 
 The app tries to open Lightroom. If it does not open automatically, launch it yourself.
 
-Add or import the exported RAW files from the folder revealed in Finder, then edit them in Lightroom. Importing files into Lightroom is a manual step.
+1. In Lightroom, open **Photos → Local** to browse files on your Mac.
+2. Under **Browse**, navigate to **`<user home>/PhotosToLR`**. Your user home is the folder for your Mac login, usually shown with a house icon. The same location is written as `~/PhotosToLR` in the Finder instructions above.
+3. Open the batch subfolder that Photos to Lightroom just created—the one revealed in Finder after export.
+4. Select the exported RAW photographs and edit them in Lightroom.
+
+Local mode lets you edit these files directly on your Mac without importing them into Lightroom's cloud library. You can add `PhotosToLR` to Lightroom's **Favorites** to find it quickly next time. See Adobe's [guide to editing locally stored photos](https://helpx.adobe.com/lightroom/desktop/add-import-and-capture-photos/access-photos.html).
 
 ### 3. Export finished JPEGs
 
@@ -110,7 +115,7 @@ If a file is missing or incorrectly named, fix it and click the button again. Th
 | What you see | What to check |
 | --- | --- |
 | “Select one or more photos” | Select the photographs in Apple Photos before clicking Send. |
-| Lightroom does not open | Open it manually and add the files from the batch folder. |
+| Lightroom does not open | Open it manually, choose **Photos → Local**, and browse to your batch folder inside `<user home>/PhotosToLR`. |
 | “JPEG not found” | Follow the exact filename and folder shown in the app's message. Check for an added suffix or export subfolder. |
 | “Multiple matching JPEG files” | Keep one finished JPEG for that original in the batch folder. |
 | “Photos asset not found” | Check Photos permissions and make sure the original item is still available in your library. |

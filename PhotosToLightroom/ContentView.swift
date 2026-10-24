@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var isReturningToPhotos = false
     @AppStorage("exportBatchManifest") private var exportBatchManifest = ""
 
+    private static let filenameNormalizationLocale = Locale(identifier: "en_US_POSIX")
+
     var body: some View {
         VStack(spacing: 18) {
             Image(systemName: "arrow.left.arrow.right")
@@ -257,7 +259,10 @@ struct ContentView: View {
     private func normalizedBaseName(for file: URL) -> String {
         file.deletingPathExtension()
             .lastPathComponent
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .folding(
+                options: [.caseInsensitive, .diacriticInsensitive],
+                locale: Self.filenameNormalizationLocale
+            )
     }
 
     private func returnToPhotos() {

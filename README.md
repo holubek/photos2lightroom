@@ -6,6 +6,14 @@ Photos to Lightroom is a small Mac app that helps you move selected originals fr
 
 It is for photographers who organize their collection in Apple Photos but want Lightroom's editing tools for selected shots.
 
+## Disclaimer and backups
+
+This tool is provided **“as is” and “as available,” without any warranty or guarantee**, express or implied, including warranties of merchantability, fitness for a particular purpose, and non-infringement. Use it entirely at your own risk. There is no guarantee that it will operate correctly or preserve your photos, videos, edits, metadata, or photo library.
+
+To the fullest extent permitted by applicable law, the authors and contributors accept no liability for any claims, damages, or other losses arising from the use of, or inability to use, this tool, including accidental deletion, corruption, overwriting, loss of photos or other data, or damage to your photo library.
+
+**Before using the app, make a separate backup of your Photos library and original files, and verify that you can restore it.** Test the workflow with copies of a few nonessential photos first. You are responsible for maintaining backups and checking the results of exports and returned edits.
+
 ## How it works
 
 ```text

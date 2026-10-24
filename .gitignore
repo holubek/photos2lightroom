@@ -1,0 +1,21 @@
+# Local macOS and Xcode user data
+.DS_Store
+xcuserdata/
+*.xcuserstate
+
+# Build output
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+*.dSYM/
+
+# Local credentials and configuration
+.env
+.env.*
+*.p12
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile

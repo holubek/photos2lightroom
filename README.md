@@ -16,7 +16,7 @@ Your original RAWs  →     Edit exported copies  →    View finished photograp
 
 1. Select photographs in Apple Photos.
 2. Export copies of their originals with Photos to Lightroom.
-3. In **Lightroom (Local mode)**, navigate to `<user home>/PhotosToLR`, open your batch folder, edit the photographs, and export finished JPEGs.
+3. In **Lightroom (Local mode)**, navigate to `<user home>/PhotosToLR`, open your batch folder, edit the photographs, and export the finished JPEGs **into the same batch folder as the exported original files**.
 4. Use Photos to Lightroom to apply the JPEGs to the original items in Photos.
 
 For photographs, the returned JPEG becomes the edited version of the existing library item, rather than a separate imported photo. The app preserves the original RAW and any paired original JPEG in Photos. You can use Photos' **Revert to Original** command to remove the edit. See Apple's [guide to editing and reverting photos](https://support.apple.com/guide/photos/pht304c2ace6/mac).

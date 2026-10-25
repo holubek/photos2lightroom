@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 import Photos
 import UniformTypeIdentifiers
 
@@ -330,16 +331,19 @@ struct ContentView: View {
                         for: item.originalFilename,
                         rawBaseNames: rawBaseNames
                     )
+                    // MP4 originals remain beside Lightroom's "-2" export.
+                    let expectedVideoName = normalizedBaseName(for: originalURL)
+                        + (originalURL.pathExtension.lowercased() == "mp4" ? "-2" : "")
                     let matches = isVideo
                         ? mp4Files.filter {
-                            normalizedBaseName(for: $0) == normalizedBaseName(for: originalURL)
+                            normalizedBaseName(for: $0) == expectedVideoName
                         }
                         : jpegFiles.filter { normalizedBaseName(for: $0) == expectedJPEGName }
                     let fileType = isVideo ? "MP4" : "JPEG"
 
                     guard !matches.isEmpty else {
                         let expectedName = isVideo
-                            ? originalURL.deletingPathExtension().lastPathComponent
+                            ? expectedVideoName
                             : expectedJPEGName
                         failures.append(
                             "\(displayName): \(fileType) not found. Expected \(expectedName).\(isVideo ? "mp4" : "jpg or .jpeg") directly in \(exportFolder.path)"
@@ -350,25 +354,14 @@ struct ContentView: View {
                         failures.append("\(displayName): multiple matching \(fileType) files")
                         continue
                     }
-                    // Do not mistake an exported MP4 original for a Lightroom edit.
-                    guard !isVideo || editedURL.lastPathComponent.caseInsensitiveCompare(
-                        originalURL.lastPathComponent
-                    ) != .orderedSame else {
-                        failures.append("\(displayName): MP4 has the original filename; export from a MOV original")
-                        continue
-                    }
-                    guard isVideo || asset.canPerform(.content) else {
+                    guard asset.canPerform(.content) else {
                         failures.append("\(displayName): asset is not editable")
                         continue
                     }
 
                     do {
                         status = "Returning item \(appliedCount + 1) of \(pendingIndices.count)…"
-                        if isVideo {
-                            try await importVideo(from: editedURL, copyingMetadataFrom: asset)
-                        } else {
-                            try await applyEdit(from: editedURL, to: asset)
-                        }
+                        try await applyEdit(from: editedURL, to: asset)
                         batch.items[index].isApplied = true
                         try saveBatch(batch)
                         appliedCount += 1
@@ -378,7 +371,7 @@ struct ContentView: View {
                 }
 
                 if failures.isEmpty {
-                    status = "\(appliedCount) Lightroom item(s) returned. Videos imported as new items; originals preserved."
+                    status = "\(appliedCount) Lightroom item(s) returned. Originals preserved; use Revert to Original in Photos to undo."
                 } else {
                     status = "Applied \(appliedCount) edit(s). Skipped \(failures.count): \(failures.joined(separator: "; "))."
                 }
@@ -388,29 +381,72 @@ struct ContentView: View {
         }
     }
 
-    private func importVideo(from fileURL: URL, copyingMetadataFrom asset: PHAsset) async throws {
-        // Set metadata in the creation transaction so the new video never loses
-        // the original's Photos date/time or location, even if the MP4 omits them.
-        let creationDate = asset.creationDate
-        let location = asset.location
-        try await PHPhotoLibrary.shared().performChanges {
-            let request = PHAssetCreationRequest.forAsset()
-            request.addResource(with: .video, fileURL: fileURL, options: nil)
-            request.creationDate = creationDate
-            request.location = location
+    private func renderVideo(from fileURL: URL, to outputURL: URL) async throws {
+        let video = AVURLAsset(url: fileURL)
+        let tracks = try await video.loadTracks(withMediaType: .video)
+        guard !tracks.isEmpty else { throw WorkflowError.videoExportUnavailable }
+
+        var needsOrientationRendering = false
+        for track in tracks {
+            let transform = try await track.load(.preferredTransform)
+            if !transform.isIdentity {
+                needsOrientationRendering = true
+            }
+        }
+
+        // Rewrap upright footage without recompression. Photos requires orientation
+        // to be baked into the frames, so transformed footage needs rendering.
+        let preset = needsOrientationRendering
+            ? AVAssetExportPresetHighestQuality
+            : AVAssetExportPresetPassthrough
+        guard let session = AVAssetExportSession(asset: video, presetName: preset),
+              session.supportedFileTypes.contains(.mov) else {
+            throw WorkflowError.videoExportUnavailable
+        }
+        if needsOrientationRendering {
+            session.videoComposition = try await AVVideoComposition.videoComposition(
+                withPropertiesOf: video
+            )
+        }
+
+        if #available(macOS 15.0, *) {
+            try await session.export(to: outputURL, as: .mov)
+        } else {
+            session.outputURL = outputURL
+            session.outputFileType = .mov
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                session.exportAsynchronously {
+                    switch session.status {
+                    case .completed:
+                        continuation.resume()
+                    case .cancelled:
+                        continuation.resume(throwing: CancellationError())
+                    default:
+                        continuation.resume(throwing: session.error ?? WorkflowError.videoExportUnavailable)
+                    }
+                }
+            }
         }
     }
 
     private func applyEdit(from fileURL: URL, to asset: PHAsset) async throws {
+        status = "Preparing item from Photos (may download from iCloud)…"
         let editingInput = try await contentEditingInput(for: asset)
         let editingOutput = PHContentEditingOutput(
             contentEditingInput: editingInput
         )
 
-        try FileManager.default.copyItem(
-            at: fileURL,
-            to: editingOutput.renderedContentURL
-        )
+        // The rendered file is temporary; Photos copies it when committing the edit.
+        defer { try? FileManager.default.removeItem(at: editingOutput.renderedContentURL) }
+        if asset.mediaType == .video {
+            status = "Preparing edited video for Photos…"
+            try await renderVideo(from: fileURL, to: editingOutput.renderedContentURL)
+        } else {
+            try FileManager.default.copyItem(
+                at: fileURL,
+                to: editingOutput.renderedContentURL
+            )
+        }
 
         let adjustmentDetails = [
             "editor": "Adobe Lightroom",
@@ -425,6 +461,7 @@ struct ContentView: View {
             data: adjustmentData
         )
 
+        status = "Saving edit to Photos…"
         try await PHPhotoLibrary.shared().performChanges {
             let changeRequest = PHAssetChangeRequest(for: asset)
             changeRequest.contentEditingOutput = editingOutput
@@ -437,11 +474,21 @@ struct ContentView: View {
         options.canHandleAdjustmentData = { _ in false }
 
         return try await withCheckedThrowingContinuation { continuation in
-            asset.requestContentEditingInput(with: options) { input, _ in
+            asset.requestContentEditingInput(with: options) { input, info in
                 if let input {
                     continuation.resume(returning: input)
                 } else {
-                    continuation.resume(throwing: WorkflowError.editingInputUnavailable)
+                    let error = info[PHContentEditingInputErrorKey] as? NSError
+                    let isInCloud = (info[PHContentEditingInputResultIsInCloudKey] as? NSNumber)?.boolValue == true
+                    let cancelled = (info[PHContentEditingInputCancelledKey] as? NSNumber)?.boolValue == true
+                    var details = cancelled ? "The Photos request was cancelled." : ""
+                    if isInCloud {
+                        details += " Photos could not download the required version from iCloud. Open this video in Photos, enter Edit, and let it finish loading before retrying."
+                    }
+                    if let error {
+                        details += " \(error.localizedDescription) [\(error.domain) \(error.code)]"
+                    }
+                    continuation.resume(throwing: WorkflowError.editingInputUnavailable(details))
                 }
             }
         }
@@ -464,7 +511,8 @@ private enum WorkflowError: LocalizedError {
     case appleScript(String)
     case missingAssetManifest
     case missingExportBatch
-    case editingInputUnavailable
+    case editingInputUnavailable(String)
+    case videoExportUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -476,8 +524,10 @@ private enum WorkflowError: LocalizedError {
             return "Photos did not return identifiers and filenames for the selected photos."
         case .missingExportBatch:
             return "Send one or more photos to Lightroom before applying edits."
-        case .editingInputUnavailable:
-            return "Photos could not prepare the original photo for editing."
+        case .editingInputUnavailable(let details):
+            return "Photos could not prepare the item for editing. \(details)"
+        case .videoExportUnavailable:
+            return "Could not prepare the edited video as a QuickTime movie for Photos."
         }
     }
 }

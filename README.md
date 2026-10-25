@@ -107,7 +107,7 @@ If a file is missing or incorrectly named, fix it and click the button again. Th
 ## Other supported cases
 
 - **JPEG originals:** If you export a standalone JPEG from Photos, name the finished edit with `-2` before the extension: `IMG_1234.jpg` → `IMG_1234-2.jpg`. This distinguishes the edit from the exported original. RAW+JPEG pairs use the RAW naming rule above.
-- **Videos:** The return workflow accepts a matching MP4 export from a MOV original, such as `CLIP_1234.MOV` → `CLIP_1234.mp4`. It imports the edited video as a **new Photos item**, copying the original's date and location. It preserves the original video. Returning edits from an MP4 original is not supported by this workflow.
+- **Videos:** The return workflow accepts a matching MP4 export from a MOV original, such as `CLIP_1234.MOV` → `CLIP_1234.mp4`. It converts the edited MP4 to a QuickTime movie and applies it as a **reversible edit to the existing Photos item**, preserving its date, location, and original video. Use **Revert to Original** in Photos to discard the edit. Upright footage is rewrapped without recompression; footage with orientation transforms is rendered to bake in its orientation. For an MP4 original, keep the original file and export the edit with the `-2` suffix, such as `MVI_5000.MP4` → `MVI_5000-2.mp4`. The original MP4 is never selected as the returned edit.
 
 ## Current limitations
 
